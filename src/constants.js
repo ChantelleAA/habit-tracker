@@ -30,13 +30,13 @@ export const MILESTONES = [
 ];
 
 export const DEFAULTS = [
-  { id:"h1", name:"Water Intake",    cat:"health",       freq:"daily", core:true  },
-  { id:"h2", name:"30 Mins Reading", cat:"mindset",      freq:"daily", core:false },
-  { id:"h3", name:"Meditate",        cat:"mindset",      freq:"daily", core:true  },
-  { id:"h4", name:"10K Steps",       cat:"fitness",      freq:"5x",    core:false },
-  { id:"h5", name:"Training",        cat:"fitness",      freq:"3x",    core:false },
-  { id:"h6", name:"Tidy Room",       cat:"productivity", freq:"daily", core:false },
-  { id:"h7", name:"Sunlight",        cat:"health",       freq:"daily", core:false },
+  { id:"00000000-0000-0000-0000-000000000001", name:"Water Intake",    cat:"health",       freq:"daily", core:true  },
+  { id:"00000000-0000-0000-0000-000000000002", name:"30 Mins Reading", cat:"mindset",      freq:"daily", core:false },
+  { id:"00000000-0000-0000-0000-000000000003", name:"Meditate",        cat:"mindset",      freq:"daily", core:true  },
+  { id:"00000000-0000-0000-0000-000000000004", name:"10K Steps",       cat:"fitness",      freq:"5x",    core:false },
+  { id:"00000000-0000-0000-0000-000000000005", name:"Training",        cat:"fitness",      freq:"3x",    core:false },
+  { id:"00000000-0000-0000-0000-000000000006", name:"Tidy Room",       cat:"productivity", freq:"daily", core:false },
+  { id:"00000000-0000-0000-0000-000000000007", name:"Sunlight",        cat:"health",       freq:"daily", core:false },
 ];
 
 export const defaultReminderSettings = (reminderEmail = '') => ({
