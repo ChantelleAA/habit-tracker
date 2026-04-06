@@ -295,7 +295,7 @@ export default function App() {
               <input
                 value={intentions[todayIdx]||""}
                 onChange={e=>setIntentions(p=>{const n=[...p];n[todayIdx]=e.target.value;return n;})}
-                placeholder="Set an intention for today — e.g. "I will show up for myself, no matter what""
+                placeholder={'Set an intention for today - e.g. "I will show up for myself, no matter what"'}
                 style={{width:"100%",border:"1px solid #f0c0d0",borderRadius:9,padding:"11px 14px",fontSize:14,fontFamily:"Georgia,serif",color:"#5a1a30",outline:"none",boxSizing:"border-box",background:"#fffafb"}}
               />
             </div>
