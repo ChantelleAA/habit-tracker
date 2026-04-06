@@ -4,6 +4,13 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   LineChart, Line, CartesianGrid
 } from "recharts";
+import {
+getStartDate, saveStartDate,
+getHabits, saveHabit, deleteHabit, reorderHabits,
+getCheckins, toggleCheckin,
+getIntentions, saveIntention,
+getReflections, saveReflection,
+} from './db';
 
 // ─── Constants ────────────────────────────────────────────────
 const DAY_NAMES = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
@@ -64,26 +71,6 @@ const fmtDate = (startDate, di) => {
   return d.toLocaleDateString("en-GB", { weekday:"long", day:"numeric", month:"long" });
 };
 
-// ─── localStorage helpers ─────────────────────────────────────
-const LS_KEYS = {
-  habits:      "ht-habits",
-  checked:     "ht-checked",
-  startDate:   "ht-start",
-  intentions:  "ht-intent",
-  reflections: "ht-reflect",
-};
-
-const lsGet = (key, fallback) => {
-  try {
-    const v = localStorage.getItem(key);
-    return v ? JSON.parse(v) : fallback;
-  } catch { return fallback; }
-};
-
-const lsSet = (key, value) => {
-  try { localStorage.setItem(key, JSON.stringify(value)); } catch {}
-};
-
 // ─── Shared styles ────────────────────────────────────────────
 const card   = { background:"#fff", borderRadius:14, boxShadow:"0 2px 20px rgba(200,80,120,0.09)", padding:"18px 16px" };
 const secLbl = { margin:"0 0 12px", fontSize:11, letterSpacing:2, color:"#a03060", textTransform:"uppercase", fontFamily:"sans-serif", fontWeight:700 };
@@ -94,23 +81,37 @@ const btn    = (bg="#e879a0", col="#fff") => ({
 
 // ─── App ──────────────────────────────────────────────────────
 export default function App() {
-  const [habits,      setHabits]      = useState(() => lsGet(LS_KEYS.habits,      DEFAULTS));
-  const [checked,     setChecked]     = useState(() => lsGet(LS_KEYS.checked,     Object.fromEntries(DEFAULTS.map(h=>[h.id,eRow()]))));
-  const [startDate,   setStartDate]   = useState(() => lsGet(LS_KEYS.startDate,   new Date().toISOString().slice(0,10)));
-  const [intentions,  setIntentions]  = useState(() => lsGet(LS_KEYS.intentions,  Array(30).fill("")));
-  const [reflections, setReflections] = useState(() => lsGet(LS_KEYS.reflections, Array(4).fill("")));
+  const [habits, setHabits] = useState(DEFAULTS);
+  const [checked, setChecked] = useState({});
+  const [startDate, setStartDate] = useState(new Date().toISOString().slice(0,10));
+  const [intentions, setIntentions] = useState(Array(30).fill(''));
+  const [reflections, setReflections] = useState(Array(4).fill(''));
+  const [loaded, setLoaded] = useState(false);
   const [view,        setView]        = useState("today");
   const [toast,       setToast]       = useState(null);
   const [dragIdx,     setDragIdx]     = useState(null);
 
   const todayIdx = getDayIdx(startDate);
 
-  // ── Persist on every change ──
-  useEffect(() => { lsSet(LS_KEYS.habits,      habits);      }, [habits]);
-  useEffect(() => { lsSet(LS_KEYS.checked,     checked);     }, [checked]);
-  useEffect(() => { lsSet(LS_KEYS.startDate,   startDate);   }, [startDate]);
-  useEffect(() => { lsSet(LS_KEYS.intentions,  intentions);  }, [intentions]);
-  useEffect(() => { lsSet(LS_KEYS.reflections, reflections); }, [reflections]);
+  // Load all tracker data from Supabase on mount.
+  useEffect(() => {
+    async function load() {
+      const [h, c, s, i, r] = await Promise.all([
+        getHabits(),
+        getCheckins(),
+        getStartDate(),
+        getIntentions(),
+        getReflections(),
+      ]);
+      if (h.length > 0) setHabits(h);
+      setChecked(c);
+      if (s) setStartDate(s);
+      setIntentions(i);
+      setReflections(r);
+      setLoaded(true);
+    }
+    load();
+  }, []);
 
   // ── Toast ──
   const showToast = (msg, emoji="🌹") => {
@@ -121,7 +122,12 @@ export default function App() {
   // ── Habit CRUD ──
   const addHabit = () => {
     const id = uid();
-    setHabits(p => [...p, {id, name:"", cat:"health", freq:"daily", core:false}]);
+    const newHabit = { id, name:"", cat:"health", freq:"daily", core:false };
+    setHabits(p => {
+      const updated = [...p, newHabit];
+      saveHabit(newHabit, updated.length - 1);
+      return updated;
+    });
     setChecked(p => ({...p, [id]:eRow()}));
   };
 
@@ -129,14 +135,47 @@ export default function App() {
     if (!window.confirm(`Remove "${habits.find(h=>h.id===id)?.name||"habit"}"?`)) return;
     setHabits(p  => p.filter(h=>h.id!==id));
     setChecked(p => { const n={...p}; delete n[id]; return n; });
+    deleteHabit(id);
   };
 
-  const updHabit = (id,field,val) => setHabits(p=>p.map(h=>h.id===id?{...h,[field]:val}:h));
+  const updHabit = (id,field,val) => {
+    setHabits(p => {
+      const updated = p.map(h => h.id===id ? {...h,[field]:val} : h);
+      const habit = updated.find(h => h.id===id);
+      const pos = updated.findIndex(h => h.id===id);
+      if (habit) saveHabit(habit, pos);
+      return updated;
+    });
+  };
+
+  const handleSetStartDate = (date) => {
+    setStartDate(date);
+    saveStartDate(date);
+  };
+
+  const handleSetIntention = (dayIndex, text) => {
+    setIntentions(p => {
+      const n = [...p];
+      n[dayIndex] = text;
+      return n;
+    });
+    saveIntention(dayIndex, text);
+  };
+
+  const handleSetReflection = (weekIndex, text) => {
+    setReflections(p => {
+      const n = [...p];
+      n[weekIndex] = text;
+      return n;
+    });
+    saveReflection(weekIndex, text);
+  };
 
   const toggleCheck = (id, di) => {
     const row   = checked[id] || eRow();
     const going = !row[di];
     setChecked(p => { const n={...p,[id]:[...(p[id]||eRow())]};n[id][di]=going;return n; });
+    toggleCheckin(id, di, going);
     if (going) {
       const newRow=[...row]; newRow[di]=true;
       let streak=0; for(let d=di;d>=0;d--){if(newRow[d])streak++;else break;}
@@ -294,7 +333,7 @@ export default function App() {
               <p style={secLbl}>Today's Intention</p>
               <input
                 value={intentions[todayIdx]||""}
-                onChange={e=>setIntentions(p=>{const n=[...p];n[todayIdx]=e.target.value;return n;})}
+                onChange={e=>handleSetIntention(todayIdx, e.target.value)}
                 placeholder={'Set an intention for today - e.g. "I will show up for myself, no matter what"'}
                 style={{width:"100%",border:"1px solid #f0c0d0",borderRadius:9,padding:"11px 14px",fontSize:14,fontFamily:"Georgia,serif",color:"#5a1a30",outline:"none",boxSizing:"border-box",background:"#fffafb"}}
               />
@@ -657,7 +696,7 @@ export default function App() {
                     {ok&&<span style={{fontSize:11,color:"#c04070",fontFamily:"sans-serif",fontWeight:700}}>{wd}/{we-ws} active · avg {avg}%</span>}
                   </div>
                   {ok&&<div style={{display:"flex",gap:2,marginBottom:12}}>{dailyPcts.slice(ws,we).map((pct,i)=><div key={i} style={{flex:1,height:6,borderRadius:2,background:`rgba(232,121,160,${0.12+pct/100*0.86})`}}/>)}</div>}
-                  <textarea disabled={!ok} value={reflections[week]||""} onChange={e=>setReflections(p=>{const n=[...p];n[week]=e.target.value;return n;})}
+                  <textarea disabled={!ok} value={reflections[week]||""} onChange={e=>handleSetReflection(week, e.target.value)}
                     placeholder={ok?"How did this week go? What worked, what didn't? What will you carry into next week?":"Unlocks when you reach this week"}
                     rows={4} style={{width:"100%",border:"1px solid #f0c0d0",borderRadius:9,padding:"11px 14px",fontSize:13,fontFamily:"Georgia,serif",color:"#5a1a30",outline:"none",resize:"vertical",boxSizing:"border-box",background:"#fffafb"}}/>
                 </div>
@@ -672,7 +711,7 @@ export default function App() {
             <div style={card}>
               <p style={secLbl}>Challenge Start Date</p>
               <p style={{margin:"0 0 10px",fontSize:12,color:"#a03060",fontFamily:"sans-serif"}}>Today shows as Day {todayIdx+1} of 30. Change this to shift your whole calendar.</p>
-              <input type="date" value={startDate} onChange={e=>setStartDate(e.target.value)}
+              <input type="date" value={startDate} onChange={e=>handleSetStartDate(e.target.value)}
                 style={{border:"1px solid #f0c0d0",borderRadius:8,padding:"9px 12px",fontSize:13,fontFamily:"sans-serif",color:"#5a1a30",outline:"none"}}/>
             </div>
             <div style={card}>
