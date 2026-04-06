@@ -59,7 +59,7 @@ export function useHabitTracker(userId, userEmail) {
         ]);
 
         if (cancelled) return;
-        if (h.length > 0) setHabits(h);
+        setHabits(h.length > 0 ? h : []);
         setChecked(c);
         setStartDate(currentStartDate);
         setIntentions(i);
