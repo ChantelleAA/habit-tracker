@@ -24,6 +24,16 @@ export function ThemeProvider({ children }) {
     r.setProperty('--t-heading',     theme.heading);
     r.setProperty('--t-muted',       theme.muted);
     r.setProperty('--t-border',      theme.border);
+    r.setProperty('--cat-health',    theme.catHealth);
+    r.setProperty('--cat-health-bg', theme.catHealthBg);
+    r.setProperty('--cat-mind',      theme.catMind);
+    r.setProperty('--cat-mind-bg',   theme.catMindBg);
+    r.setProperty('--cat-prod',      theme.catProd);
+    r.setProperty('--cat-prod-bg',   theme.catProdBg);
+    r.setProperty('--cat-fit',       theme.catFit);
+    r.setProperty('--cat-fit-bg',    theme.catFitBg);
+    r.setProperty('--cat-other',     theme.catOther);
+    r.setProperty('--cat-other-bg',  theme.catOtherBg);
     localStorage.setItem('habit-theme', themeName);
   }, [theme, themeName]);
 

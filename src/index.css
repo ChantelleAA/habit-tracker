@@ -9,7 +9,7 @@ html, body, #root {
 }
 
 body {
-  background: #fdf0f3;
+  background: var(--t-bg, #fdf0f3);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -20,14 +20,14 @@ body {
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #fde8f0;
+  background: var(--t-light, #fde8f0);
 }
 ::-webkit-scrollbar-thumb {
-  background: #f0b0cc;
+  background: color-mix(in srgb, var(--t-accent, #e879a0) 55%, white);
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #e879a0;
+  background: var(--t-accent, #e879a0);
 }
 
 /* Smooth scrolling */

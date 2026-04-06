@@ -1,11 +1,11 @@
 export const DAY_NAMES = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 
 export const CATS = {
-  health:       { label:"Health 🩺",       color:"#e879a0", bg:"#fde8f0" },
-  mindset:      { label:"Mindset 🧠",       color:"#9b7fd4", bg:"#f0ebff" },
-  productivity: { label:"Productivity ⚡",  color:"#5b9bd5", bg:"#e8f2ff" },
-  fitness:      { label:"Fitness 💪",       color:"#5bbf7a", bg:"#e8f8ee" },
-  other:        { label:"Other ✨",         color:"#d4a017", bg:"#fff8e1" },
+  health:       { label:"Health 🩺",       color:"var(--cat-health)", bg:"var(--cat-health-bg)" },
+  mindset:      { label:"Mindset 🧠",      color:"var(--cat-mind)", bg:"var(--cat-mind-bg)" },
+  productivity: { label:"Productivity ⚡", color:"var(--cat-prod)", bg:"var(--cat-prod-bg)" },
+  fitness:      { label:"Fitness 💪",      color:"var(--cat-fit)", bg:"var(--cat-fit-bg)" },
+  other:        { label:"Other ✨",        color:"var(--cat-other)", bg:"var(--cat-other-bg)" },
 };
 
 export const FREQS = {
