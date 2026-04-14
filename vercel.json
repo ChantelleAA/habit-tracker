@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/waitlist",
+      "destination": "/bloom-waitlist.html"
+    }
+  ]
+}
