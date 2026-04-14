@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   getProfile, saveProfile,
   getStartDate, saveStartDate,
@@ -8,7 +8,7 @@ import {
   getReflections, saveReflection,
 } from '../db';
 import {
-  DEFAULTS, FREQS, LEVELS, MILESTONES,
+  DEFAULTS, FREQS, LEVELS, MILESTONES, isCycleOver,
   defaultReminderSettings, eRow, getDayIdx,
 } from '../constants';
 
@@ -22,14 +22,31 @@ export function useHabitTracker(userId, userEmail) {
   const [toast,       setToast]       = useState(null);
   const [dragIdx,     setDragIdx]     = useState(null);
   const [loaded,      setLoaded]      = useState(false);
+  const [savedKeys,   setSavedKeys]   = useState({});   // tracks which fields just saved
 
   const debounceRefs = useRef({});
+  const toastTimer   = useRef(null);
   const todayIdx = getDayIdx(startDate);
+  const cycleOver = isCycleOver(startDate);
+
+  // Clean up all debounce timers and toast timer on unmount
+  useEffect(() => {
+    return () => {
+      Object.values(debounceRefs.current).forEach(clearTimeout);
+      clearTimeout(toastTimer.current);
+    };
+  }, []);
 
   const debounce = (key, fn, delay = 500) => {
     clearTimeout(debounceRefs.current[key]);
     debounceRefs.current[key] = setTimeout(fn, delay);
   };
+
+  // Flash a "saved" indicator for a field key for 2 seconds
+  const markSaved = useCallback((key) => {
+    setSavedKeys(p => ({ ...p, [key]: true }));
+    setTimeout(() => setSavedKeys(p => { const n = { ...p }; delete n[key]; return n; }), 2000);
+  }, []);
 
   // ── Load data ──────────────────────────────────────────────────
   useEffect(() => {
@@ -78,11 +95,22 @@ export function useHabitTracker(userId, userEmail) {
   }, [userId, userEmail]);
 
   // ── Toast ──────────────────────────────────────────────────────
-  // type: 'default' | 'error' | 'milestone' (milestone passes emoji in msg separately)
-  const showToast = (msg, type = 'default', emoji = null) => {
-    setToast({ msg, type, emoji });
-    setTimeout(() => setToast(null), 2800);
-  };
+  const showToast = useCallback((msg, type = 'default', emoji = null, onUndo = null) => {
+    clearTimeout(toastTimer.current);
+    setToast({ msg, type, emoji, onUndo });
+    const delay = onUndo ? 5000 : 2800;
+    toastTimer.current = setTimeout(() => {
+      setToast(null);
+      if (onUndo && type === 'undo') {
+        // auto-commit: the caller's setTimeout handles the actual DB write
+      }
+    }, delay);
+  }, []);
+
+  const dismissToast = useCallback(() => {
+    clearTimeout(toastTimer.current);
+    setToast(null);
+  }, []);
 
   const persist = async (operation, successMessage) => {
     try {
@@ -107,10 +135,28 @@ export function useHabitTracker(userId, userEmail) {
   };
 
   const removeHabit = (id) => {
-    if (!window.confirm(`Remove "${habits.find(h => h.id === id)?.name || "habit"}"?`)) return;
+    const habit = habits.find(h => h.id === id);
+    if (!habit) return;
+    const habitPos     = habits.findIndex(h => h.id === id);
+    const habitChecked = checked[id];
+
+    // Optimistically remove
     setHabits(p => p.filter(h => h.id !== id));
     setChecked(p => { const n = { ...p }; delete n[id]; return n; });
-    void persist(deleteHabit(id, userId));
+
+    let undone = false;
+    const undo = () => {
+      undone = true;
+      setHabits(p => { const n = [...p]; n.splice(habitPos, 0, habit); return n; });
+      setChecked(p => ({ ...p, [id]: habitChecked || eRow() }));
+      dismissToast();
+    };
+
+    showToast(`"${habit.name || 'Habit'}" removed`, 'undo', null, undo);
+
+    setTimeout(() => {
+      if (!undone) void persist(deleteHabit(id, userId));
+    }, 5000);
   };
 
   const updHabit = (id, field, val) => {
@@ -132,20 +178,39 @@ export function useHabitTracker(userId, userEmail) {
   };
 
   const handleSetIntention = (dayIndex, text) => {
+    if (text.length > 280) return;
     setIntentions(p => { const n = [...p]; n[dayIndex] = text; return n; });
-    debounce(`intention-${dayIndex}`, () => void persist(saveIntention(dayIndex, text, startDate, userId)), 500);
+    debounce(`intention-${dayIndex}`, () => {
+      saveIntention(dayIndex, text, startDate, userId)
+        .then(() => markSaved(`intention-${dayIndex}`))
+        .catch(err => { console.error(err); showToast(err.message || 'Save failed', 'error'); });
+    }, 500);
   };
 
   const handleSetReflection = (weekIndex, text) => {
+    if (text.length > 1000) return;
     setReflections(p => { const n = [...p]; n[weekIndex] = text; return n; });
-    debounce(`reflection-${weekIndex}`, () => void persist(saveReflection(weekIndex, text, startDate, userId)), 500);
+    debounce(`reflection-${weekIndex}`, () => {
+      saveReflection(weekIndex, text, startDate, userId)
+        .then(() => markSaved(`reflection-${weekIndex}`))
+        .catch(err => { console.error(err); showToast(err.message || 'Save failed', 'error'); });
+    }, 500);
   };
 
+  // Optimistic toggleCheck with rollback on failure
   const toggleCheck = (id, di) => {
-    const row = checked[id] || eRow();
+    const row  = checked[id] || eRow();
     const going = !row[di];
+
+    // Optimistic update
     setChecked(p => { const n = { ...p, [id]: [...(p[id] || eRow())] }; n[id][di] = going; return n; });
-    void persist(toggleCheckin(id, di, going, startDate, userId));
+
+    toggleCheckin(id, di, going, startDate, userId).catch(err => {
+      // Roll back on failure
+      setChecked(p => { const n = { ...p, [id]: [...(p[id] || eRow())] }; n[id][di] = !going; return n; });
+      showToast(err.message || 'Save failed', 'error');
+    });
+
     if (going) {
       const newRow = [...row]; newRow[di] = true;
       let streak = 0;
@@ -168,23 +233,83 @@ export function useHabitTracker(userId, userEmail) {
   };
 
   const resetDay = () => {
+    const savedChecked = { ...checked };
     setChecked(p => {
       const n = { ...p };
       habits.forEach(h => { n[h.id] = [...(p[h.id] || eRow())]; n[h.id][todayIdx] = false; });
       return n;
     });
-    void persist(Promise.all(habits.map(h => toggleCheckin(h.id, todayIdx, false, startDate, userId))));
+
+    let undone = false;
+    const undo = () => {
+      undone = true;
+      setChecked(savedChecked);
+      dismissToast();
+    };
+
+    showToast("Today's check-ins reset", 'undo', null, undo);
+
+    setTimeout(() => {
+      if (!undone) void persist(Promise.all(habits.map(h => toggleCheckin(h.id, todayIdx, false, startDate, userId))));
+    }, 5000);
   };
 
   const handleSaveProfile = async () => {
     if (!userId) return;
-    await persist(saveProfile({ ...profile, auth_email: userEmail }, userId), 'Reminder settings saved');
+    await persist(saveProfile({ ...profile, auth_email: userEmail }, userId), 'Settings saved');
   };
 
   const handleResetCheckins = () => {
-    if (!window.confirm("Reset all check-ins? Names and settings will be kept.")) return;
+    const savedChecked = { ...checked };
+
     setChecked(Object.fromEntries(habits.map(h => [h.id, eRow()])));
-    void persist(clearCheckins(userId));
+
+    let undone = false;
+    const undo = () => {
+      undone = true;
+      setChecked(savedChecked);
+      dismissToast();
+    };
+
+    showToast('All check-ins reset', 'undo', null, undo);
+
+    setTimeout(() => {
+      if (!undone) void persist(clearCheckins(userId));
+    }, 5000);
+  };
+
+  // Called when user completes onboarding
+  const handleOnboardingComplete = async ({ habits: selectedHabits, startDate: chosenStart }) => {
+    setStartDate(chosenStart);
+    setHabits(selectedHabits);
+    setChecked(Object.fromEntries(selectedHabits.map(h => [h.id, eRow()])));
+    localStorage.setItem('habit-tracker-onboarded', '1');
+
+    if (userId) {
+      await saveStartDate(chosenStart, userId);
+      await Promise.all(selectedHabits.map((h, i) => saveHabit(h, i, userId)));
+    }
+  };
+
+  // Called when user starts a new cycle after completing one
+  const handleStartNewCycle = () => {
+    const today = new Date().toISOString().slice(0, 10);
+
+    // Save the completed cycle to localStorage history
+    try {
+      const history = JSON.parse(localStorage.getItem('habit-tracker-cycle-history') || '[]');
+      history.push({ start: startDate, end: today, oPct });
+      localStorage.setItem('habit-tracker-cycle-history', JSON.stringify(history));
+    } catch (_) {}
+
+    setStartDate(today);
+    setChecked(Object.fromEntries(habits.map(h => [h.id, eRow()])));
+    setIntentions(Array(30).fill(''));
+    setReflections(Array(4).fill(''));
+
+    if (userId) {
+      void persist(saveStartDate(today, userId), 'New cycle started! 🌱');
+    }
   };
 
   // ── Drag to reorder ────────────────────────────────────────────
@@ -246,12 +371,18 @@ export function useHabitTracker(userId, userEmail) {
   const todayDone = habits.filter(h => (checked[h.id] || [])[todayIdx]).length;
   const status    = oPct >= 80 ? "Peak Discipline" : oPct >= 60 ? "Strong Momentum" : oPct >= 40 ? "Building Up 🌱" : "Just Getting Started 🪴";
 
+  const isOnboarded = userId
+    ? habits.length > 0 || localStorage.getItem('habit-tracker-onboarded') === '1'
+    : true;
+
   return {
     // state
     habits, checked, startDate, intentions, reflections,
     profile, setProfile, toast, dragIdx, loaded,
+    savedKeys, cycleOver,
     // derived
     todayIdx, oPct, cStreak, lStreak, consist, xp, level, nextLvl, xpPct, todayDone, status, dailyPcts,
+    isOnboarded,
     // calculation helpers
     hDone, hTarget, hPct, streakFor,
     // actions
@@ -259,7 +390,8 @@ export function useHabitTracker(userId, userEmail) {
     handleSetStartDate, handleSetIntention, handleSetReflection,
     toggleCheck, markAllToday, resetDay,
     handleSaveProfile, handleResetCheckins,
+    handleOnboardingComplete, handleStartNewCycle,
     onDragStart, onDragOver, onDragEnd,
-    showToast,
+    showToast, dismissToast,
   };
 }

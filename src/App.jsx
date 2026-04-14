@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
-import { Sunrise, LayoutGrid, Flame, BarChart2, PenLine, Settings, AlertTriangle, CheckCheck } from 'lucide-react';
+import { Sunrise, LayoutGrid, Flame, BarChart2, PenLine, Settings, AlertTriangle, CheckCheck, RotateCcw } from 'lucide-react';
 import { supabase } from './supabase';
 import { ThemeProvider } from './ThemeContext';
 import { useHabitTracker } from './hooks/useHabitTracker';
 import { useIsMobile } from './hooks/useIsMobile';
+import ErrorBoundary from './components/ErrorBoundary';
 import AuthScreen from './components/AuthScreen';
+import OnboardingView from './components/OnboardingView';
 import TodayView from './components/TodayView';
 import GridView from './components/GridView';
 import HeatmapView from './components/HeatmapView';
@@ -22,21 +24,53 @@ const TABS = [
   { id:"settings",  label:"Setup",   Icon:Settings   },
 ];
 
+const AUTH_ERRORS = {
+  'invalid login credentials':      'Incorrect email or password.',
+  'invalid email or password':      'Incorrect email or password.',
+  'email not confirmed':            'Please check your inbox and confirm your email before signing in.',
+  'user already registered':        'An account with this email already exists. Try signing in instead.',
+  'password should be at least':    'Password must be at least 6 characters.',
+  'unable to validate email':       'Please enter a valid email address.',
+  'email rate limit exceeded':      'Too many attempts. Please wait a few minutes and try again.',
+  'too many requests':              'Too many attempts. Please wait a few minutes and try again.',
+  'user not found':                 'No account found with that email.',
+  'for security purposes':          'For security purposes, please wait before trying again.',
+};
+
+const mapAuthError = (message) => {
+  if (!message) return 'Authentication failed.';
+  const lower = message.toLowerCase();
+  for (const [key, friendly] of Object.entries(AUTH_ERRORS)) {
+    if (lower.includes(key)) return friendly;
+  }
+  return message;
+};
+
 function Toast({ toast }) {
   if (!toast) return null;
   const isError     = toast.type === 'error';
   const isMilestone = toast.type === 'milestone';
+  const isUndo      = toast.type === 'undo';
   return (
-    <div style={{
+    <div role="alert" aria-live="polite" style={{
       position:"fixed", top:16, left:"50%", transform:"translateX(-50%)",
       background:"#fff", border:"1px solid var(--t-border)", borderRadius:12,
-      padding:"12px 20px", boxShadow:"0 4px 24px rgba(var(--t-accent-rgb),0.18)",
-      zIndex:300, display:"flex", alignItems:"center", gap:10, whiteSpace:"nowrap",
+      padding:"12px 16px", boxShadow:"0 4px 24px rgba(var(--t-accent-rgb),0.18)",
+      zIndex:300, display:"flex", alignItems:"center", gap:10,
+      maxWidth:"calc(100vw - 32px)",
     }}>
-      {isMilestone && <span style={{ fontSize:22 }}>{toast.emoji}</span>}
-      {isError  && <AlertTriangle size={18} style={{ color:"var(--t-strong)", flexShrink:0 }} />}
-      {!isError && !isMilestone && <CheckCheck size={17} style={{ color:"var(--t-accent)", flexShrink:0 }} />}
-      <span style={{ fontFamily:"sans-serif", fontSize:14, color:"var(--t-heading)", fontWeight:600 }}>{toast.msg}</span>
+      {isMilestone && <span style={{ fontSize:22, flexShrink:0 }}>{toast.emoji}</span>}
+      {isError     && <AlertTriangle size={18} style={{ color:"var(--t-strong)", flexShrink:0 }} />}
+      {isUndo      && <RotateCcw size={16} style={{ color:"var(--t-accent)", flexShrink:0 }} />}
+      {!isError && !isMilestone && !isUndo && <CheckCheck size={17} style={{ color:"var(--t-accent)", flexShrink:0 }} />}
+      <span style={{ fontFamily:"sans-serif", fontSize:13, color:"var(--t-heading)", fontWeight:600 }}>{toast.msg}</span>
+      {isUndo && toast.onUndo && (
+        <button
+          onClick={toast.onUndo}
+          style={{ background:'var(--t-accent)', color:'#fff', border:'none', borderRadius:6, padding:'4px 11px', fontFamily:'sans-serif', fontSize:12, fontWeight:700, cursor:'pointer', flexShrink:0, marginLeft:4 }}>
+          Undo
+        </button>
+      )}
     </div>
   );
 }
@@ -81,7 +115,7 @@ function AppShell() {
       if (authMode === 'signup') {
         const { error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: window.location.origin } });
         if (error) throw error;
-        setAuthMessage('Check your email to confirm your account, then sign in.');
+        setAuthMessage('Check your inbox and confirm your email, then sign in here.');
         setAuthPassword('');
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -89,9 +123,22 @@ function AppShell() {
         setAuthEmail(''); setAuthPassword('');
       }
     } catch (err) {
-      setAuthError(err.message || 'Authentication failed.');
+      setAuthError(mapAuthError(err.message));
     } finally {
       setAuthLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async (email) => {
+    if (!email) return { error: 'Enter your email address first.' };
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: `${window.location.origin}/?reset=true`,
+      });
+      if (error) throw error;
+      return { message: 'Check your inbox for a password reset link.' };
+    } catch (err) {
+      return { error: mapAuthError(err.message) };
     }
   };
 
@@ -114,6 +161,7 @@ function AppShell() {
       authPassword={authPassword} setAuthPassword={setAuthPassword}
       authError={authError} authMessage={authMessage} authLoading={authLoading}
       onSubmit={handleAuthAction}
+      onForgotPassword={handleForgotPassword}
     />
   );
 
@@ -127,14 +175,24 @@ function AppShell() {
     </div>
   );
 
+  // Show onboarding for new users with no habits
+  if (!tracker.isOnboarded) return (
+    <OnboardingView onComplete={async (result) => {
+      await tracker.handleOnboardingComplete(result);
+    }} />
+  );
+
   const { level, xp, xpPct, nextLvl, toast, todayIdx } = tracker;
+
+  // Human-readable date for mobile header
+  const todayLabel = new Date().toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'short' });
 
   return (
     <div style={{ fontFamily:"'Georgia',serif", background:"var(--t-bg)", minHeight:"100vh" }}>
-      <Toast toast={toast} />
+      <Toast toast={toast} onDismiss={tracker.dismissToast} />
 
       {/* ── Header ── */}
-      <div style={{ background:`linear-gradient(135deg,var(--t-header-from),var(--t-header-to))`, padding: isMobile ? "12px 16px 0" : "16px 20px 0" }}>
+      <header style={{ background:`linear-gradient(135deg,var(--t-header-from),var(--t-header-to))`, padding: isMobile ? "12px 16px 0" : "16px 20px 0" }}>
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom: isMobile ? 8 : 12 }}>
           <div>
             <p style={{ margin:0, fontSize:10, letterSpacing:4, color:"var(--t-label)", textTransform:"uppercase", fontFamily:"sans-serif" }}>30-Day Reset</p>
@@ -152,7 +210,7 @@ function AppShell() {
             )}
             {isMobile && (
               <div style={{ textAlign:"right" }}>
-                <div style={{ fontSize:11, color:"var(--t-body)", fontFamily:"sans-serif", fontWeight:700 }}>Day {todayIdx + 1}/30</div>
+                <div style={{ fontSize:11, color:"var(--t-body)", fontFamily:"sans-serif", fontWeight:700 }}>Day {todayIdx + 1}/30 · {todayLabel}</div>
                 <div style={{ fontSize:10, color:"var(--t-label)", fontFamily:"sans-serif" }}>{level.name} · {xp} XP</div>
               </div>
             )}
@@ -167,30 +225,40 @@ function AppShell() {
 
         {/* Desktop tab bar */}
         {!isMobile && (
-          <div style={{ display:"flex", gap:2, overflowX:"auto", WebkitOverflowScrolling:"touch" }}>
+          <div role="tablist" aria-label="Navigation" style={{ display:"flex", gap:2, overflowX:"auto", WebkitOverflowScrolling:"touch" }}>
             {TABS.map(({ id, label, Icon }) => (
-              <button key={id} onClick={() => setView(id)} style={{
-                flexShrink:0, padding:"8px 12px", border:"none", cursor:"pointer",
-                fontFamily:"sans-serif", fontSize:11, fontWeight:600, whiteSpace:"nowrap",
-                background: view===id ? "#fff" : "transparent",
-                color: view===id ? "var(--t-strong)" : "var(--t-body)",
-                borderRadius:"7px 7px 0 0", transition:"all 0.2s",
-                display:"flex", alignItems:"center", gap:5,
-              }}>
-                <Icon size={13} /> {label}
+              <button
+                key={id}
+                role="tab"
+                aria-selected={view === id}
+                aria-controls={`panel-${id}`}
+                onClick={() => setView(id)}
+                style={{
+                  flexShrink:0, padding:"8px 12px", border:"none", cursor:"pointer",
+                  fontFamily:"sans-serif", fontSize:11, fontWeight:600, whiteSpace:"nowrap",
+                  background: view===id ? "#fff" : "transparent",
+                  color: view===id ? "var(--t-strong)" : "var(--t-body)",
+                  borderRadius:"7px 7px 0 0", transition:"all 0.2s",
+                  display:"flex", alignItems:"center", gap:5,
+                }}>
+                <Icon size={13} aria-hidden="true" /> {label}
               </button>
             ))}
           </div>
         )}
-      </div>
+      </header>
 
       {/* Content */}
-      <div style={{
-        padding: isMobile ? "12px 12px" : "16px",
-        maxWidth: 1020,
-        margin: "0 auto",
-        paddingBottom: isMobile ? "calc(72px + env(safe-area-inset-bottom, 0px))" : "16px",
-      }}>
+      <main
+        id={`panel-${view}`}
+        role="tabpanel"
+        aria-label={TABS.find(t => t.id === view)?.label}
+        style={{
+          padding: isMobile ? "12px 12px" : "16px",
+          maxWidth: 1020,
+          margin: "0 auto",
+          paddingBottom: isMobile ? "calc(72px + env(safe-area-inset-bottom, 0px))" : "16px",
+        }}>
         {view === "today" && (
           <TodayView
             habits={tracker.habits} checked={tracker.checked} startDate={tracker.startDate}
@@ -199,6 +267,8 @@ function AppShell() {
             toggleCheck={tracker.toggleCheck} handleSetIntention={tracker.handleSetIntention}
             markAllToday={tracker.markAllToday} resetDay={tracker.resetDay}
             streakFor={tracker.streakFor} isMobile={isMobile}
+            cycleOver={tracker.cycleOver} handleStartNewCycle={tracker.handleStartNewCycle}
+            savedKeys={tracker.savedKeys}
           />
         )}
         {view === "tracker" && (
@@ -207,6 +277,7 @@ function AppShell() {
             todayIdx={tracker.todayIdx} oPct={tracker.oPct} dailyPcts={tracker.dailyPcts}
             toggleCheck={tracker.toggleCheck}
             hDone={tracker.hDone} hTarget={tracker.hTarget} hPct={tracker.hPct}
+            isMobile={isMobile}
           />
         )}
         {view === "heatmap" && (
@@ -231,6 +302,7 @@ function AppShell() {
             intentions={tracker.intentions} reflections={tracker.reflections}
             todayIdx={tracker.todayIdx} dailyPcts={tracker.dailyPcts}
             handleSetReflection={tracker.handleSetReflection}
+            savedKeys={tracker.savedKeys}
           />
         )}
         {view === "settings" && (
@@ -243,13 +315,15 @@ function AppShell() {
             handleResetCheckins={tracker.handleResetCheckins}
             onDragStart={tracker.onDragStart} onDragOver={tracker.onDragOver} onDragEnd={tracker.onDragEnd}
             dragIdx={tracker.dragIdx} showToast={tracker.showToast} isMobile={isMobile}
+            checked={tracker.checked}
+            intentions={tracker.intentions} reflections={tracker.reflections}
           />
         )}
-      </div>
+      </main>
 
       {/* Mobile bottom nav */}
       {isMobile && (
-        <nav style={{
+        <nav role="tablist" aria-label="Navigation" style={{
           position:"fixed", bottom:0, left:0, right:0,
           background:"#fff",
           borderTop:"1px solid var(--t-border)",
@@ -261,14 +335,20 @@ function AppShell() {
           {TABS.map(({ id, label, Icon }) => {
             const active = view === id;
             return (
-              <button key={id} onClick={() => setView(id)} style={{
-                flex:1, padding:"8px 0 6px", border:"none", cursor:"pointer",
-                background:"transparent",
-                color: active ? "var(--t-accent)" : "#999",
-                display:"flex", flexDirection:"column", alignItems:"center", gap:3,
-                transition:"color 0.15s",
-              }}>
-                <Icon size={20} strokeWidth={active ? 2.5 : 1.8} />
+              <button
+                key={id}
+                role="tab"
+                aria-selected={active}
+                aria-label={label}
+                onClick={() => setView(id)}
+                style={{
+                  flex:1, padding:"8px 0 6px", border:"none", cursor:"pointer",
+                  background:"transparent",
+                  color: active ? "var(--t-accent)" : "#999",
+                  display:"flex", flexDirection:"column", alignItems:"center", gap:3,
+                  transition:"color 0.15s",
+                }}>
+                <Icon size={20} strokeWidth={active ? 2.5 : 1.8} aria-hidden="true" />
                 <span style={{ fontSize:9, fontFamily:"sans-serif", fontWeight: active ? 700 : 500, letterSpacing:0.3 }}>
                   {label}
                 </span>
@@ -283,8 +363,10 @@ function AppShell() {
 
 export default function App() {
   return (
-    <ThemeProvider>
-      <AppShell />
-    </ThemeProvider>
+    <ErrorBoundary>
+      <ThemeProvider>
+        <AppShell />
+      </ThemeProvider>
+    </ErrorBoundary>
   );
 }

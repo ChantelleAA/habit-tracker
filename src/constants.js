@@ -56,6 +56,13 @@ export const getDayIdx = (startDate) => {
   return Math.max(0, Math.min(29, Math.floor((today - start) / 86400000)));
 };
 
+export const isCycleOver = (startDate) => {
+  if (!startDate) return false;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const start = new Date(startDate); start.setHours(0,0,0,0);
+  return Math.floor((today - start) / 86400000) >= 30;
+};
+
 export const fmtDate = (startDate, di) => {
   const d = new Date(startDate);
   d.setDate(d.getDate() + di);
