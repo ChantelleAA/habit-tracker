@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bloom — 30-Day Reset</title>
+  <meta name="description" content="A 30-day habit tracker for people ready to finally follow through. Join the waitlist." />
+  <meta property="og:title" content="Bloom — 30-Day Reset" />
+  <meta property="og:description" content="Build habits that last. Simple, beautiful, and built around how people actually change." />
+  <meta property="og:type" content="website" />
+
+  <!-- SETUP: Replace with your Formspree endpoint -->
+  <!-- 1. Go to https://formspree.io, create a free account, click New Form -->
+  <!-- 2. Copy your endpoint and replace YOUR_FORM_ID below -->
+  <script>const FORMSPREE_URL = "https://formspree.io/f/YOUR_FORM_ID";</script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Inter:wght@300;400;500;600&display=swap');
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --rose:       #b83050;
+      --rose-deep:  #7a1530;
+      --rose-pale:  #fdf0f2;
+      --rose-light: #f9e0e5;
+      --rose-mid:   #e8b0be;
+      --cream:      #fdf8f5;
+      --text:       #18080e;
+      --text-mid:   #4a2a32;
+      --text-muted: #8a6068;
+      --border:     rgba(184,48,80,0.14);
+      --glass:      rgba(255,255,255,0.80);
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(155deg, var(--cream) 0%, #faeaee 50%, #f5eaf0 100%);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    body::after {
+      content: '';
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      opacity: 0.018;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    }
+
+    .wrap {
+      position: relative; z-index: 1;
+      max-width: 660px; margin: 0 auto;
+      padding: 0 28px 120px;
+    }
+
+    /* NAV */
+    nav {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 36px 0 0; margin-bottom: 72px;
+    }
+    .logo {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 26px; font-weight: 300;
+      color: var(--rose-deep); letter-spacing: 3px;
+      text-transform: uppercase;
+    }
+    .badge {
+      font-size: 10px; font-weight: 500; letter-spacing: 2.5px;
+      text-transform: uppercase; color: var(--rose);
+      border: 1px solid var(--rose-mid); border-radius: 2px;
+      padding: 6px 14px; background: var(--rose-pale);
+    }
+
+    /* HERO */
+    .hero { text-align: center; padding-bottom: 72px; }
+
+    .mark {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 72px; height: 72px; border-radius: 50%;
+      background: linear-gradient(135deg, #f9dde4, #f0c0cc);
+      border: 1px solid rgba(184,48,80,0.2);
+      margin-bottom: 36px;
+      box-shadow: 0 8px 32px rgba(184,48,80,0.12);
+    }
+
+    .eyebrow {
+      font-size: 10px; letter-spacing: 5px; text-transform: uppercase;
+      color: var(--rose); margin-bottom: 20px; font-weight: 500;
+    }
+
+    h1 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: clamp(42px, 8vw, 68px); line-height: 1.08;
+      color: var(--text); font-weight: 300;
+      margin-bottom: 24px; letter-spacing: -0.5px;
+    }
+    h1 em { color: var(--rose); font-style: italic; }
+
+    .sub {
+      font-size: 17px; line-height: 1.8; color: var(--text-mid);
+      max-width: 480px; margin: 0 auto 40px; font-weight: 300;
+    }
+
+    .cta-btn {
+      display: inline-block; background: var(--rose); color: #fff;
+      border: none; border-radius: 3px; padding: 17px 44px;
+      font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 500;
+      cursor: pointer; letter-spacing: 2px; text-transform: uppercase;
+      box-shadow: 0 8px 32px rgba(184,48,80,0.28);
+      transition: transform 0.2s, box-shadow 0.2s;
+      text-decoration: none;
+    }
+    .cta-btn:hover { transform: translateY(-2px); box-shadow: 0 14px 40px rgba(184,48,80,0.38); }
+
+    .counter {
+      margin-top: 20px; font-size: 12px; color: var(--text-muted);
+      letter-spacing: 0.5px; min-height: 20px;
+    }
+
+    /* FEATURES */
+    .features {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 16px; margin-bottom: 56px;
+    }
+    @media (max-width: 500px) { .features { grid-template-columns: 1fr; } }
+
+    .feat {
+      background: var(--glass);
+      border: 1px solid var(--border);
+      border-radius: 4px; padding: 28px 24px;
+      transition: box-shadow 0.2s;
+    }
+    .feat:hover { box-shadow: 0 8px 32px rgba(184,48,80,0.08); }
+
+    .feat-icon {
+      width: 36px; height: 36px;
+      display: flex; align-items: center; justify-content: center;
+      background: var(--rose-light); border-radius: 50%;
+      margin-bottom: 14px;
+    }
+    .feat-icon svg {
+      width: 17px; height: 17px;
+      stroke: var(--rose); fill: none;
+      stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round;
+    }
+
+    .feat-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+    .feat-desc { font-size: 13px; color: var(--text-muted); line-height: 1.6; font-weight: 300; }
+
+    /* DIVIDER */
+    hr { border: none; border-top: 1px solid var(--border); margin: 56px 0; }
+
+    /* PULL QUOTE */
+    .pull-quote { text-align: center; padding-bottom: 72px; }
+    .pull-quote blockquote {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: clamp(24px, 4.5vw, 36px); font-weight: 300; font-style: italic;
+      color: var(--rose-deep); line-height: 1.45;
+      max-width: 520px; margin: 0 auto 16px;
+    }
+    .attribution {
+      font-size: 11px; color: var(--text-muted);
+      letter-spacing: 1.5px; text-transform: uppercase;
+      margin-bottom: 36px; font-weight: 400;
+    }
+
+    /* FORM CARD */
+    .form-card {
+      background: var(--glass);
+      border: 1px solid rgba(184,48,80,0.16);
+      border-radius: 4px; padding: 52px 48px;
+      box-shadow: 0 24px 64px rgba(184,48,80,0.07);
+    }
+    @media (max-width: 540px) { .form-card { padding: 32px 24px; } }
+
+    .form-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 34px; font-weight: 300; line-height: 1.2;
+      margin-bottom: 10px; color: var(--text);
+    }
+    .form-sub {
+      font-size: 14px; color: var(--text-muted); line-height: 1.7;
+      margin-bottom: 36px; font-weight: 300;
+    }
+
+    .field { margin-bottom: 22px; }
+
+    label {
+      display: block; font-size: 10px; font-weight: 600;
+      color: var(--text-muted); margin-bottom: 7px;
+      letter-spacing: 1.5px; text-transform: uppercase;
+    }
+
+    input[type="text"],
+    input[type="email"],
+    textarea,
+    select {
+      width: 100%;
+      border: 1px solid rgba(184,48,80,0.22);
+      border-radius: 3px;
+      padding: 13px 16px;
+      font-family: 'Inter', sans-serif;
+      font-size: 14px; font-weight: 300;
+      color: var(--text);
+      background: rgba(255,255,255,0.9);
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    input:focus, textarea:focus, select:focus {
+      border-color: var(--rose);
+      box-shadow: 0 0 0 3px rgba(184,48,80,0.08);
+    }
+    textarea { resize: vertical; min-height: 96px; line-height: 1.65; }
+    select {
+      cursor: pointer; appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23b83050' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 14px center;
+    }
+
+    .section-rule {
+      font-size: 11px; color: var(--text-muted); margin: 32px 0 24px;
+      display: flex; align-items: center; gap: 14px;
+      font-weight: 300; letter-spacing: 0.5px;
+    }
+    .section-rule::before,
+    .section-rule::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+    .submit-btn {
+      width: 100%; background: var(--rose); color: #fff;
+      border: none; border-radius: 3px; padding: 17px;
+      font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 500;
+      cursor: pointer; margin-top: 10px; letter-spacing: 2px;
+      text-transform: uppercase;
+      box-shadow: 0 8px 28px rgba(184,48,80,0.26);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .submit-btn:hover { transform: translateY(-1px); box-shadow: 0 14px 36px rgba(184,48,80,0.36); }
+    .submit-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+    .form-note {
+      margin-top: 14px; font-size: 11px; color: var(--text-muted);
+      text-align: center; font-weight: 300; letter-spacing: 0.3px;
+    }
+
+    .error-msg {
+      background: #fff5f7; border: 1px solid var(--rose-mid);
+      border-radius: 3px; padding: 12px 16px;
+      font-size: 13px; color: var(--rose); margin-bottom: 20px;
+    }
+
+    /* SUCCESS */
+    .success-card { text-align: center; padding: 56px 32px; }
+    .success-card h2 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 36px; font-weight: 300; margin-bottom: 16px;
+    }
+    .success-card p {
+      font-size: 16px; color: var(--text-mid); line-height: 1.75;
+      max-width: 400px; margin: 0 auto; font-weight: 300;
+    }
+    .success-count { margin-top: 24px; font-size: 12px; color: var(--text-muted); letter-spacing: 0.5px; }
+
+    .hidden { display: none !important; }
+    .fade-in { animation: fadeIn 0.45s ease forwards; }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .back-btn {
+      background: none; border: none; cursor: pointer;
+      font-size: 12px; color: var(--text-muted);
+      font-family: 'Inter', sans-serif; letter-spacing: 0.5px;
+    }
+    .back-btn:hover { color: var(--rose); }
+  </style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <nav>
+    <span class="logo">Bloom</span>
+    <span class="badge">Early Access</span>
+  </nav>
+
+  <!-- LANDING -->
+  <div id="landing">
+
+    <div class="hero">
+      <div class="mark">
+        <svg viewBox="0 0 24 24" fill="none" stroke="var(--rose)" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" width="30" height="30">
+          <circle cx="12" cy="12" r="4"/>
+          <path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/>
+        </svg>
+      </div>
+      <p class="eyebrow">30-Day Reset</p>
+      <h1>Build habits that<br /><em>finally last.</em></h1>
+      <p class="sub">
+        Most habit apps make you feel like you failed.
+        Bloom is built differently. It meets you where you are
+        and helps you show up, one day at a time,
+        until consistency becomes who you are.
+      </p>
+      <button class="cta-btn" onclick="showForm()">Join the Waitlist</button>
+      <p class="counter" id="counter-hero"></p>
+    </div>
+
+    <div class="features">
+
+      <div class="feat">
+        <div class="feat-icon">
+          <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        </div>
+        <div class="feat-title">30-Day Cycles</div>
+        <div class="feat-desc">Short enough to stay motivated. Long enough to create real change. One focused cycle at a time.</div>
+      </div>
+
+      <div class="feat">
+        <div class="feat-icon">
+          <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        </div>
+        <div class="feat-title">Progress You Can See</div>
+        <div class="feat-desc">Streaks, heatmaps, and a visual garden that grows with every day you follow through.</div>
+      </div>
+
+      <div class="feat">
+        <div class="feat-icon">
+          <svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+        </div>
+        <div class="feat-title">Daily Intentions</div>
+        <div class="feat-desc">Start each morning with purpose. Reflect each week. Stay anchored to what actually matters.</div>
+      </div>
+
+      <div class="feat">
+        <div class="feat-icon">
+          <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        </div>
+        <div class="feat-title">Gentle Reminders</div>
+        <div class="feat-desc">A quiet nudge when you need it. You set the time and the frequency. No noise, no pressure.</div>
+      </div>
+
+    </div>
+
+    <hr />
+
+    <div class="pull-quote">
+      <blockquote>
+        "You do not rise to the level of your goals.<br />You fall to the level of your systems."
+      </blockquote>
+      <p class="attribution">James Clear, Atomic Habits</p>
+      <p class="sub" style="font-size:16px; margin-bottom:40px;">
+        Bloom gives you the system.<br />You bring the intention.
+        That is how lasting habits get built.
+      </p>
+      <button class="cta-btn" onclick="showForm()">Get Early Access</button>
+    </div>
+
+  </div>
+
+  <!-- FORM -->
+  <div id="form-section" class="hidden">
+    <div style="display:flex; justify-content:space-between; align-items:center; padding-top:8px; margin-bottom:32px;">
+      <span class="logo">Bloom</span>
+      <button class="back-btn" onclick="showLanding()">Back</button>
+    </div>
+
+    <div class="form-card fade-in">
+      <div class="form-title">Reserve your spot</div>
+      <p class="form-sub">
+        Two minutes. Your answers shape what Bloom becomes,
+        and put you first in line when we open.
+      </p>
+
+      <div id="error-msg" class="error-msg hidden"></div>
+
+      <form id="waitlist-form" onsubmit="handleSubmit(event)">
+        <input type="text" name="_gotcha" style="display:none" tabindex="-1" autocomplete="off" />
+        <input type="hidden" name="_subject" value="New Bloom Waitlist Signup" />
+
+        <div class="field">
+          <label for="name">Your name</label>
+          <input type="text" id="name" name="name" required placeholder="First name is fine" />
+        </div>
+        <div class="field">
+          <label for="email">Email address</label>
+          <input type="email" id="email" name="email" required placeholder="you@example.com" />
+        </div>
+
+        <div class="section-rule">A few questions that shape Bloom</div>
+
+        <div class="field">
+          <label for="struggle">What makes consistency hard for you?</label>
+          <textarea id="struggle" name="struggle" placeholder="Be honest. There are no wrong answers."></textarea>
+        </div>
+        <div class="field">
+          <label for="tried">What have you tried before?</label>
+          <textarea id="tried" name="tried" placeholder="Apps, journals, accountability partners, anything..."></textarea>
+        </div>
+        <div class="field">
+          <label for="feature">What would make you open a habit app every single day?</label>
+          <textarea id="feature" name="feature" placeholder="Your answer directly shapes what we build."></textarea>
+        </div>
+        <div class="field">
+          <label for="pay">If Bloom genuinely helped you stay consistent, what feels fair?</label>
+          <select id="pay" name="pay">
+            <option value="">Select one</option>
+            <option>Free is fine</option>
+            <option>5 to 10 euros one-time</option>
+            <option>5 euros per month</option>
+            <option>10 euros per month</option>
+            <option>I would pay more if it really worked</option>
+          </select>
+        </div>
+
+        <button type="submit" class="submit-btn" id="submit-btn">Reserve My Spot</button>
+        <p class="form-note">No spam. No noise. Just a note when Bloom is ready.</p>
+      </form>
+    </div>
+  </div>
+
+  <!-- SUCCESS -->
+  <div id="success-section" class="hidden">
+    <div class="form-card fade-in">
+      <div class="success-card">
+        <div class="mark" style="margin: 0 auto 28px;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--rose)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="28" height="28">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+        </div>
+        <h2>You are on the list.</h2>
+        <p>
+          Thank you, <span id="success-name">friend</span>.
+          We will reach out personally before Bloom opens.
+          Your answers will shape what it becomes.
+        </p>
+        <p class="success-count" id="success-count"></p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  let signupCount = parseInt(localStorage.getItem('bloom-count') || '0');
+
+  function updateCounter() {
+    const el = document.getElementById('counter-hero');
+    if (el && signupCount > 0) {
+      el.textContent = signupCount + (signupCount === 1 ? ' person' : ' people') + ' already on the list';
+    }
+  }
+
+  function showForm() {
+    document.getElementById('landing').classList.add('hidden');
+    document.getElementById('form-section').classList.remove('hidden');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function showLanding() {
+    document.getElementById('form-section').classList.add('hidden');
+    document.getElementById('landing').classList.remove('hidden');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function showError(msg) {
+    const el = document.getElementById('error-msg');
+    el.textContent = msg;
+    el.classList.remove('hidden');
+  }
+
+  function hideError() {
+    document.getElementById('error-msg').classList.add('hidden');
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    hideError();
+    const btn = document.getElementById('submit-btn');
+    btn.disabled = true;
+    btn.textContent = 'Sending...';
+
+    const name  = document.getElementById('name').value.trim();
+    const email = document.getElementById('email').value.trim();
+
+    if (!name || !email) {
+      showError('Please enter your name and email.');
+      btn.disabled = false; btn.textContent = 'Reserve My Spot';
+      return;
+    }
+
+    if (FORMSPREE_URL.includes('YOUR_FORM_ID')) {
+      finishSignup(name); return;
+    }
+
+    try {
+      const res = await fetch(FORMSPREE_URL, {
+        method: 'POST',
+        body: new FormData(e.target),
+        headers: { 'Accept': 'application/json' },
+      });
+      if (res.ok) {
+        finishSignup(name);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        showError(data?.errors?.[0]?.message || 'Something went wrong. Please try again.');
+        btn.disabled = false; btn.textContent = 'Reserve My Spot';
+      }
+    } catch {
+      showError('Network error. Please check your connection and try again.');
+      btn.disabled = false; btn.textContent = 'Reserve My Spot';
+    }
+  }
+
+  function finishSignup(name) {
+    signupCount++;
+    localStorage.setItem('bloom-count', signupCount);
+    document.getElementById('success-name').textContent = name.split(' ')[0];
+    const countEl = document.getElementById('success-count');
+    if (signupCount > 1) countEl.textContent = signupCount + ' people on the list so far.';
+    document.getElementById('form-section').classList.add('hidden');
+    document.getElementById('success-section').classList.remove('hidden');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  updateCounter();
+</script>
+
+</body>
+</html>
