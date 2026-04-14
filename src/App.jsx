@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Sunrise, LayoutGrid, Flame, BarChart2, PenLine, Settings, AlertTriangle, CheckCheck, RotateCcw } from 'lucide-react';
 import { supabase } from './supabase';
-import { ThemeProvider } from './ThemeContext';
+import { ThemeProvider, useTheme } from './ThemeContext';
 import { useHabitTracker } from './hooks/useHabitTracker';
 import { useIsMobile } from './hooks/useIsMobile';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -86,6 +86,7 @@ function AppShell() {
   const [view,         setView]         = useState("today");
 
   const isMobile  = useIsMobile();
+  const { loadThemeForUser } = useTheme();
   const user      = session?.user || null;
   const userId    = user?.id || null;
   const userEmail = user?.email || '';
@@ -100,6 +101,7 @@ function AppShell() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
       setSession(s || null);
       setAuthLoading(false);
+      if (s?.user?.id) loadThemeForUser(s.user.id);
     });
     return () => { mounted = false; subscription.unsubscribe(); };
   }, []);

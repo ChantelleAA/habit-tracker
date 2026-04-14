@@ -61,20 +61,20 @@ export async function saveProfile(profile, userId = USER_ID) {
   const resolvedUserId = resolveUserId(userId)
   const fallback = defaultProfile(resolvedUserId, profile?.reminder_email || '')
 
+  const payload = {
+    user_id: resolvedUserId,
+    auth_email: profile?.auth_email || '',
+    reminder_email: profile?.reminder_email || '',
+    timezone: profile?.timezone || fallback.timezone,
+    reminder_time: profile?.reminder_time || fallback.reminder_time,
+    reminders_enabled: profile?.reminders_enabled ?? fallback.reminders_enabled,
+    updated_at: new Date().toISOString(),
+  }
+  if (profile?.theme) payload.theme = profile.theme
+
   const { error } = await supabase
     .from('profiles')
-    .upsert(
-      {
-        user_id: resolvedUserId,
-        auth_email: profile?.auth_email || '',
-        reminder_email: profile?.reminder_email || '',
-        timezone: profile?.timezone || fallback.timezone,
-        reminder_time: profile?.reminder_time || fallback.reminder_time,
-        reminders_enabled: profile?.reminders_enabled ?? fallback.reminders_enabled,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: 'user_id' }
-    )
+    .upsert(payload, { onConflict: 'user_id' })
 
   assertDbError(error)
 }

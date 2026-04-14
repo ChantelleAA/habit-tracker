@@ -10,9 +10,13 @@ create table if not exists public.profiles (
   timezone text not null default 'UTC',
   reminder_time text not null default '08:00',
   reminders_enabled boolean not null default true,
+  theme text not null default 'green',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+-- Migration: add theme column to existing databases
+-- alter table public.profiles add column if not exists theme text not null default 'green';
 
 create table if not exists public.settings (
   user_id uuid primary key references auth.users(id) on delete cascade,

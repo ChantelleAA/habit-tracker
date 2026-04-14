@@ -58,9 +58,12 @@ export const getDayIdx = (startDate) => {
 
 export const isCycleOver = (startDate) => {
   if (!startDate) return false;
-  const today = new Date(); today.setHours(0,0,0,0);
-  const start = new Date(startDate); start.setHours(0,0,0,0);
-  return Math.floor((today - start) / 86400000) >= 30;
+  // Use UTC midnight arithmetic to avoid DST clock-change errors
+  const [y, m, d] = String(startDate).split('-').map(Number);
+  const startMs = Date.UTC(y, m - 1, d);
+  const now = new Date();
+  const todayMs = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.floor((todayMs - startMs) / 86400000) >= 30;
 };
 
 export const fmtDate = (startDate, di) => {

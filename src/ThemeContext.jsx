@@ -1,15 +1,18 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { THEMES } from './themes';
+import { saveProfile, getProfile } from './db';
 
 const ThemeContext = createContext(null);
 
 export function ThemeProvider({ children }) {
-  const [themeName, setThemeName] = useState(
+  const [themeName, setThemeNameState] = useState(
     () => localStorage.getItem('habit-theme') || 'green'
   );
+  const [userId, setUserId] = useState(null);
 
   const theme = THEMES[themeName] || THEMES.green;
 
+  // Apply CSS variables whenever theme changes
   useEffect(() => {
     const r = document.documentElement.style;
     r.setProperty('--t-accent',      theme.accent);
@@ -37,8 +40,31 @@ export function ThemeProvider({ children }) {
     localStorage.setItem('habit-theme', themeName);
   }, [theme, themeName]);
 
+  // Load theme from Supabase profile when user logs in
+  const loadThemeForUser = useCallback(async (uid) => {
+    if (!uid) return;
+    setUserId(uid);
+    try {
+      const profile = await getProfile(uid);
+      if (profile?.theme && THEMES[profile.theme]) {
+        setThemeNameState(profile.theme);
+        localStorage.setItem('habit-theme', profile.theme);
+      }
+    } catch (_) {}
+  }, []);
+
+  // Save theme to Supabase profile when changed (debounced via the userId dep)
+  const setThemeName = useCallback((name) => {
+    setThemeNameState(name);
+    localStorage.setItem('habit-theme', name);
+    if (userId) {
+      // Fire-and-forget — theme preference, not critical data
+      saveProfile({ theme: name }, userId).catch(() => {});
+    }
+  }, [userId]);
+
   return (
-    <ThemeContext.Provider value={{ themeName, setThemeName, theme }}>
+    <ThemeContext.Provider value={{ themeName, setThemeName, theme, loadThemeForUser }}>
       {children}
     </ThemeContext.Provider>
   );

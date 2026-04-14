@@ -1,11 +1,19 @@
 import { CATS, DAY_NAMES, plantFor } from '../constants';
 import { card, secLbl } from '../styles';
 
-export default function GridView({ habits, checked, startDate, todayIdx, oPct, dailyPcts, toggleCheck, hDone, hTarget, hPct }) {
+export default function GridView({ habits, checked, startDate, todayIdx, oPct, dailyPcts, toggleCheck, hDone, hTarget, hPct, isMobile }) {
   const namedHabits = habits.filter(h => h.name.trim());
 
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+
+      {isMobile && namedHabits.length > 0 && (
+        <div style={{ display:'flex', alignItems:'center', gap:6, padding:'6px 10px', background:'var(--t-light)', borderRadius:8 }}>
+          <span style={{ fontSize:13 }}>👈</span>
+          <span style={{ fontSize:11, color:'var(--t-label)', fontFamily:'sans-serif' }}>Scroll sideways to see all 30 days</span>
+          <span style={{ fontSize:13 }}>👉</span>
+        </div>
+      )}
 
       {namedHabits.length > 0 ? (
         <div style={{ ...card, padding:0, overflow:"hidden" }}>
